@@ -9,6 +9,10 @@
 // TODO try adding a using namespace std in here if I can scope it to just this file
 
 namespace dukglue {
+	struct NoPush {}; // Type for indicating that a derived object pushes itself into the duktape stack
+}
+
+namespace dukglue {
 	namespace types {
 
 		// Bare<T>::type is T stripped of reference, pointer, and const off a type, like so:
@@ -125,6 +129,13 @@ namespace dukglue {
 					push<T&>(ctx, *value);
 			}
 
+			template<typename FullT, typename = typename std::enable_if<std::is_base_of<NoPush, FullT>::value>::type >
+			static void push(duk_context* ctx, FullT value) {
+				(void)ctx;
+				(void)value;
+				// No-op
+			}
+
 			// Value (create new instance on the heap)
 			// commented out because this is an easy way to accidentally cause a memory leak
 			/*template<typename FullT, typename = typename std::enable_if< std::is_same<T, typename std::remove_const<FullT>::type >::value>::type >
@@ -145,7 +156,7 @@ namespace dukglue {
 			typedef typename Bare<T>::type BareType;
 			//typedef DukType<BareType> ThisDukType;
 			typedef typename DukType<BareType>::IsValueType IsValueType;
-		
+
 			static_assert(!IsValueType::value || !std::is_pointer<T>::value, "Cannot return pointer to value type.");
 			static_assert(!IsValueType::value ||
 				(!std::is_reference<T>::value || std::is_const<typename std::remove_reference<T>::type>::value),
